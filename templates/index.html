@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DormWash 宿舍智慧洗衣房</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 6 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Plus Jakarta Sans / Noto Sans TC -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', '"Noto Sans TC"', 'sans-serif'],
+                    },
+                    colors: {
+                        linepay: '#06C755',
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes gentle-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.9; transform: scale(1.015); }
+        }
+        .animate-gentle {
+            animation: gentle-pulse 2.2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-700 min-h-screen flex flex-col antialiased selection:bg-sky-100 selection:text-sky-800">
+
+    <!-- Top Navigation Header (清新簡約校園生活風) -->
+    <header class="bg-white/95 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40 shadow-xs">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            
+            <!-- Brand Logo -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-400 to-blue-500 flex items-center justify-center text-white shadow-md shadow-sky-100">
+                    <i class="fa-solid fa-soap text-lg"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-base font-bold text-slate-900 tracking-tight">DormWash 宿舍智慧洗衣房</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+                            即時連線中
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-600 hidden sm:block">看空機 · 準時推播提醒 · 杜絕霸佔機台</p>
+                </div>
+            </div>
+
+            <!-- Right Controls: Notification Switch & Test Sound -->
+            <div class="flex items-center space-x-2">
+                <button id="notify-toggle-btn" onclick="toggleNotificationPermission()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5 border border-slate-200">
+                    <i id="notify-icon" class="fa-regular fa-bell text-slate-600"></i>
+                    <span id="notify-text">開啟取衣提醒</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex-grow w-full space-y-5">
+
+        <!-- Dorm Tabs (男生宿舍 / 女生宿舍 切換) -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="bg-slate-200/80 p-1.5 rounded-2xl flex items-center shadow-inner self-start">
+                <button id="tab-male" onclick="switchDorm('male')" class="px-5 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 bg-white text-slate-900 shadow-sm">
+                    <span class="text-base">👦</span>
+                    <span>男生宿舍 (A棟 1F)</span>
+                    <span id="badge-male-free" class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-700 font-semibold">4 空機</span>
+                </button>
+                <button id="tab-female" onclick="switchDorm('female')" class="px-5 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 text-slate-600 hover:text-slate-900">
+                    <span class="text-base">👧</span>
+                    <span>女生宿舍 (B棟 1F)</span>
+                    <span id="badge-female-free" class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 text-slate-600 font-semibold">4 空機</span>
+                </button>
+            </div>
+
+            <!-- Status Indicator Legends -->
+            <div class="flex items-center gap-3 text-xs text-slate-600 self-end sm:self-auto">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 閒置可洗
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span> 運轉倒數
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> 洗畢待取
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span> 保養維修
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 今日洗衣尖峰時段熱力圖 / 預測看板 -->
+        <div class="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs">
+            <div class="flex items-center justify-between cursor-pointer" onclick="togglePeakHeatmap()">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-sm font-bold">
+                        <i class="fa-solid fa-chart-column"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-900 flex items-center gap-2">
+                            <span>今日洗衣人潮尖峰時段預測</span>
+                            <span id="peak-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                離峰時段 · 空機率高
+                            </span>
+                        </h3>
+                        <p id="peak-smart-tip" class="text-[11px] text-slate-600 mt-0.5">
+                            💡 目前為離峰時段，空機率高，建議把握時間洗滌！
+                        </p>
+                    </div>
+                </div>
+                <button class="text-xs text-slate-600 hover:text-slate-600 flex items-center gap-1">
+                    <span id="peak-toggle-label">展開預測條</span>
+                    <i id="peak-toggle-icon" class="fa-solid fa-chevron-down text-[11px]"></i>
+                </button>
+            </div>
+
+            <!-- Heatmap Strip (可折疊/展開) -->
+            <div id="peak-heatmap-content" class="mt-4 pt-3 border-t border-slate-100 space-y-2 hidden">
+                <div class="flex items-center justify-between text-[11px] text-slate-600 font-medium">
+                    <span>06:00 起床</span>
+                    <span>12:00 午餐</span>
+                    <span>17:00 傍晚</span>
+                    <span class="text-rose-600 font-bold">21:00 洗澡尖峰</span>
+                    <span>24:00 熄燈</span>
+                </div>
+                <!-- 24H Heat Strip -->
+                <div class="w-full h-3 rounded-full overflow-hidden flex bg-slate-100 shadow-inner">
+                    <!-- 00-07 深夜 -->
+                    <div class="h-full bg-emerald-400" style="width: 29%;" title="00:00~07:00 空閒"></div>
+                    <!-- 07-12 上午 -->
+                    <div class="h-full bg-emerald-500" style="width: 21%;" title="07:00~12:00 空閒"></div>
+                    <!-- 12-17 下午離峰 -->
+                    <div class="h-full bg-emerald-400" style="width: 21%;" title="12:00~17:00 離峰"></div>
+                    <!-- 17-20 傍晚稍擠 -->
+                    <div class="h-full bg-amber-400" style="width: 12.5%;" title="17:00~20:00 人潮增加"></div>
+                    <!-- 20-24 晚間尖峰 -->
+                    <div class="h-full bg-rose-500" style="width: 16.5%;" title="20:00~24:00 沐浴排隊大尖峰"></div>
+                </div>
+                <div class="flex items-center justify-between text-[10px] text-slate-600 pt-1">
+                    <div class="flex items-center gap-2">
+                        <span class="inline-block w-2.5 h-2 rounded bg-emerald-400"></span> 綠色：極空閒
+                        <span class="inline-block w-2.5 h-2 rounded bg-amber-400 ml-2"></span> 黃色：普通
+                        <span class="inline-block w-2.5 h-2 rounded bg-rose-500 ml-2"></span> 紅色：極度擁擠
+                    </div>
+                    <span class="text-slate-600">系統即時統計宿舍使用習慣模型</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4 Machine Cards Grid -->
+        <div id="machines-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Machine Cards Injected by JS -->
+            <div class="col-span-full py-20 text-center text-slate-600">
+                <i class="fa-solid fa-spinner animate-spin text-2xl text-sky-500 mb-2"></i>
+                <p class="text-xs">正在載入宿舍洗衣房即時狀態...</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-auto border-t border-slate-100 py-6 text-center text-xs text-slate-600 bg-white">
+        DormWash 智慧宿舍洗衣房 &copy; 2026 校園生活服務平台
+    </footer>
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- Modal 1: 開始洗衣/烘衣彈窗 (嚴格房號-床號驗證 + LINE Pay 整合) -->
+    <div id="modal-start" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl border border-slate-100 relative">
+            <button onclick="closeModal('modal-start')" class="absolute top-5 right-5 text-slate-600 hover:text-slate-700 transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-11 h-11 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl shadow-xs">
+                    <i class="fa-solid fa-play"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-900">開始洗衣 / 烘衣</h3>
+                    <p id="modal-start-machine-name" class="text-xs text-slate-600 font-medium">A棟 洗衣機 1號</p>
+                </div>
+            </div>
+
+            <form id="start-form" onsubmit="handleStartWashSubmit(event)" class="space-y-4">
+                <input type="hidden" id="start-machine-id">
+                <input type="hidden" id="start-machine-type">
+                
+                <!-- 房號床號 (嚴格防呆校驗) -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">
+                        房號床號 <span class="text-rose-500 font-normal text-[11px]">*格式: 1120-1</span>
+                    </label>
+                    <div class="relative">
+                        <input type="text" id="start-user-name" required placeholder="例如: 1120-1" maxlength="7"
+                               oninput="validateRoomBedInput(this)"
+                               class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition">
+                        <span id="roombed-check-icon" class="absolute right-3 top-2.5 text-xs hidden"></span>
+                    </div>
+                    <p id="roombed-error" class="text-[11px] text-rose-500 font-medium mt-1 hidden">
+                        ⚠️ 格式錯誤！必須為「房號-床號」（如 1120-1，床號為 1~4）
+                    </p>
+                </div>
+
+                <!-- 選擇洗程或烘程方案 -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">選擇洗滌方案</label>
+                    <div id="cycle-options-container" class="space-y-1.5">
+                        <!-- Injected based on washer or dryer -->
+                    </div>
+                    <input type="hidden" id="start-duration" value="2100">
+                    <input type="hidden" id="start-price" value="20">
+                </div>
+
+                <!-- 付款方式選擇 (LINE Pay / 投幣) -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">付款方式</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="selectPaymentMethod('linepay', this)" class="pay-option py-2 px-3 rounded-xl border-2 border-linepay bg-emerald-50 text-emerald-800 font-bold text-xs flex items-center justify-center gap-1.5 transition">
+                            <span class="w-4 h-4 rounded-full bg-linepay text-white flex items-center justify-center text-[10px] font-black">L</span>
+                            <span>LINE Pay</span>
+                        </button>
+                        <button type="button" onclick="selectPaymentMethod('coin', this)" class="pay-option py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition hover:bg-slate-100">
+                            <i class="fa-solid fa-coins text-amber-500"></i>
+                            <span>實體投幣</span>
+                        </button>
+                    </div>
+                    <input type="hidden" id="selected-payment" value="linepay">
+                </div>
+
+                <div class="pt-2 flex items-center justify-end space-x-2">
+                    <button type="button" onclick="closeModal('modal-start')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition">取消</button>
+                    <button type="submit" id="start-submit-btn" class="px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-xs font-bold text-white transition flex items-center gap-1.5 shadow-md shadow-sky-500/20">
+                        <i class="fa-solid fa-check"></i> 確認啟動
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 1-B: LINE Pay 模擬支付彈窗 -->
+    <div id="modal-linepay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-slate-100 relative text-center">
+            <button onclick="closeModal('modal-linepay')" class="absolute top-5 right-5 text-slate-600 hover:text-slate-700">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="w-12 h-12 mx-auto rounded-2xl bg-linepay text-white flex items-center justify-center text-xl font-black mb-3 shadow-md shadow-emerald-200">
+                LINE
+            </div>
+            <h3 class="text-base font-bold text-slate-900">LINE Pay 快速結帳</h3>
+            <p class="text-xs text-slate-600 mt-0.5">DormWash 宿舍智慧生活</p>
+
+            <div class="my-5 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <div class="text-xs text-slate-600">應付金額</div>
+                <div id="linepay-amount-display" class="text-3xl font-extrabold text-slate-900 mt-1 font-mono">NT$ 20</div>
+                <div id="linepay-desc-display" class="text-xs text-slate-600 mt-1">A棟 洗衣機 1號 · 標準洗滌 35 分鐘</div>
+            </div>
+
+            <!-- Fake QR code / One-click Pay -->
+            <div class="w-36 h-36 mx-auto bg-slate-100 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 flex-col mb-4">
+                <i class="fa-solid fa-qrcode text-5xl text-slate-700 mb-1"></i>
+                <span class="text-[10px] text-slate-600">掃描或點擊下方直接扣款</span>
+            </div>
+
+            <button onclick="confirmLinePayPayment()" class="w-full py-3 rounded-xl bg-linepay hover:bg-emerald-600 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20">
+                <i class="fa-solid fa-lock"></i>
+                <span>立即扣款並啟動機台</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal 2: 登記排隊候補 (嚴格房號-床號驗證) -->
+    <div id="modal-queue" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl border border-slate-100 relative">
+            <button onclick="closeModal('modal-queue')" class="absolute top-5 right-5 text-slate-600 hover:text-slate-700 transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-11 h-11 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl shadow-xs">
+                    <i class="fa-solid fa-user-clock"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-900">登記排隊候補</h3>
+                    <p id="modal-queue-machine-name" class="text-xs text-slate-600 font-medium">A棟 洗衣機 1號</p>
+                </div>
+            </div>
+
+            <form id="queue-form" onsubmit="handleQueueSubmit(event)" class="space-y-4">
+                <input type="hidden" id="queue-machine-id">
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">
+                        房號床號 <span class="text-rose-500 font-normal text-[11px]">*格式: 1120-1</span>
+                    </label>
+                    <input type="text" id="queue-user-name" required placeholder="例如: 1120-2" maxlength="7"
+                           oninput="validateRoomBedInput(this)"
+                           class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">通知信箱 / 代號</label>
+                    <input type="text" id="queue-user-contact" required placeholder="例如: student@school.edu.tw" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition">
+                    <p class="text-[11px] text-slate-600 mt-1.5 leading-relaxed">前一位同學取衣完畢後，系統將發送通知並自動保留 10 分鐘！</p>
+                </div>
+
+                <div class="pt-2 flex items-center justify-end space-x-2">
+                    <button type="button" onclick="closeModal('modal-queue')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition">取消</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-xs font-bold text-white transition flex items-center gap-1.5 shadow-md shadow-purple-500/20">
+                        <i class="fa-solid fa-check"></i> 加入排隊
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 3: 機台報修 / 異常反饋彈窗 -->
+    <div id="modal-report" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl border border-slate-100 relative">
+            <button onclick="closeModal('modal-report')" class="absolute top-5 right-5 text-slate-600 hover:text-slate-700 transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shadow-xs">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-900">回報機台異常</h3>
+                    <p id="modal-report-machine-name" class="text-xs text-slate-600 font-medium">A棟 洗衣機 1號</p>
+                </div>
+            </div>
+
+            <form id="report-form" onsubmit="handleReportSubmit(event)" class="space-y-4">
+                <input type="hidden" id="report-machine-id">
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">異常類型</label>
+                    <select id="report-issue-type" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+                        <option value="脫水異常震動 / 怪聲">🔊 脫水劇烈晃動 / 異常巨響</option>
+                        <option value="排水堵塞 / 底部漏水">💧 排水堵塞 / 底部積水</option>
+                        <option value="LINE Pay扣款但未啟動">💰 扣款成功但機台未啟動</option>
+                        <option value="面板無反應 / 按鈕卡死">🛑 面板螢幕無反應 / 按鈕故障</option>
+                        <option value="烘衣不熱 / 烘不乾">💨 烘衣機加熱管不熱 / 無法烘乾</option>
+                        <option value="其他硬體故障">⚠️ 其他硬體故障問題</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">狀況簡述 (選填)</label>
+                    <input type="text" id="report-note" placeholder="例如：水排不掉、有焦味等" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-amber-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">您的房號床號 (選填)</label>
+                    <input type="text" id="report-user-name" placeholder="例如: 1120-1" maxlength="7" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:border-amber-500">
+                    <p class="text-[11px] text-slate-600 mt-1">若該機台累計多次報修，系統將自動標記為「維修中」避免其他同學誤投幣！</p>
+                </div>
+
+                <div class="pt-2 flex items-center justify-end space-x-2">
+                    <button type="button" onclick="closeModal('modal-report')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition">取消</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-xs font-bold text-white transition flex items-center gap-1.5 shadow-md shadow-amber-500/20">
+                        <i class="fa-solid fa-paper-plane"></i> 送出報修
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Floating Top-Right Toast Notification Banner -->
+    <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2 pointer-events-none max-w-sm w-full"></div>
+
+    <!-- ==================== FRONTEND JAVASCRIPT ==================== -->
+    <script>
+        // 全域狀態
+        let currentDorm = 'male'; // 'male' or 'female'
+        let allMachines = [];
+        let socket = null;
+        let pendingStartData = null; // LINE Pay 待付款資料
+
+        // 提示音：Web Audio API 三音和弦鈴聲
+        function playChimeSound() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+
+                const notes = [
+                    { freq: 523.25, time: 0.0, dur: 0.2 }, // C5
+                    { freq: 659.25, time: 0.15, dur: 0.25 }, // E5
+                    { freq: 783.99, time: 0.3, dur: 0.45 }  // G5
+                ];
+
+                notes.forEach(n => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(n.freq, ctx.currentTime + n.time);
+                    gain.gain.setValueAtTime(0.25, ctx.currentTime + n.time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + n.time + n.dur);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime + n.time);
+                    osc.stop(ctx.currentTime + n.time + n.dur);
+                });
+            } catch (err) {
+                console.log("Audio play error:", err);
+            }
+        }
+
+        function toggleNotificationPermission() {
+            if (!("Notification" in window)) {
+                alert("抱歉，您的瀏覽器不支援桌面推播通知！");
+                return;
+            }
+            if (Notification.permission === "granted") {
+                showStudentToast("通知已在啟用狀態 🔔", "當衣物洗畢或排隊輪到您時，都會收到即時提醒！", "success");
+            } else {
+                Notification.requestPermission().then(permission => {
+                    updateNotificationButtonState();
+                    if (permission === "granted") {
+                        showStudentToast("通知設定成功！🎉", "洗好時將主動發送推播通知給您！", "success");
+                        playChimeSound();
+                    }
+                });
+            }
+        }
+
+        function updateNotificationButtonState() {
+            const btn = document.getElementById('notify-toggle-btn');
+            const icon = document.getElementById('notify-icon');
+            const text = document.getElementById('notify-text');
+
+            if ("Notification" in window && Notification.permission === "granted") {
+                btn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 transition flex items-center gap-1.5";
+                icon.className = "fa-solid fa-bell text-emerald-600";
+                text.innerText = "取衣通知已開啟";
+            } else {
+                btn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition flex items-center gap-1.5";
+                icon.className = "fa-regular fa-bell text-slate-600";
+                text.innerText = "開啟取衣提醒";
+            }
+        }
+
+        function sendNativeNotification(title, body) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                try {
+                    new Notification(title, {
+                        body: body,
+                        icon: "https://cdn-icons-png.flaticon.com/512/995/995053.png"
+                    });
+                } catch (e) {
+                    console.log("Native notification error:", e);
+                }
+            }
+        }
+
+        // 房號床號格式校驗 (防呆：例如 1120-1)
+        function validateRoomBed(val) {
+            const pattern = /^\d{3,4}-[1-4]$/;
+            return pattern.test(val.trim());
+        }
+
+        function validateRoomBedInput(input) {
+            const val = input.value.trim();
+            const errEl = document.getElementById('roombed-error');
+            const iconEl = document.getElementById('roombed-check-icon');
+            
+            if (val.length === 0) {
+                if (errEl) errEl.classList.add('hidden');
+                if (iconEl) iconEl.classList.add('hidden');
+                input.className = "w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition";
+                return false;
+            }
+
+            if (validateRoomBed(val)) {
+                if (errEl) errEl.classList.add('hidden');
+                if (iconEl) {
+                    iconEl.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500"></i>';
+                    iconEl.classList.remove('hidden');
+                }
+                input.className = "w-full px-3.5 py-2.5 bg-emerald-50/40 border border-emerald-300 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition";
+                return true;
+            } else {
+                if (errEl) errEl.classList.remove('hidden');
+                if (iconEl) {
+                    iconEl.innerHTML = '<i class="fa-solid fa-circle-xmark text-rose-500"></i>';
+                    iconEl.classList.remove('hidden');
+                }
+                input.className = "w-full px-3.5 py-2.5 bg-rose-50/40 border border-rose-300 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition";
+                return false;
+            }
+        }
+
+        // 宿舍分頁切換
+        function switchDorm(dorm) {
+            currentDorm = dorm;
+            const tabM = document.getElementById('tab-male');
+            const tabF = document.getElementById('tab-female');
+
+            if (dorm === 'male') {
+                tabM.className = "px-5 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 bg-white text-slate-900 shadow-sm";
+                tabF.className = "px-5 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 text-slate-600 hover:text-slate-900";
+            } else {
+                tabF.className = "px-5 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 bg-white text-slate-900 shadow-sm";
+                tabM.className = "px-5 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 text-slate-600 hover:text-slate-900";
+            }
+            renderMachines();
+        }
+
+        // 熱力圖折疊/展開
+        function togglePeakHeatmap() {
+            const content = document.getElementById('peak-heatmap-content');
+            const icon = document.getElementById('peak-toggle-icon');
+            const label = document.getElementById('peak-toggle-label');
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.className = "fa-solid fa-chevron-up text-[11px]";
+                label.innerText = "收合";
+            } else {
+                content.classList.add('hidden');
+                icon.className = "fa-solid fa-chevron-down text-[11px]";
+                label.innerText = "展開預測條";
+            }
+        }
+
+        // 更新熱力圖當前時段建議
+        function updatePeakPrediction() {
+            const hour = new Date().getHours();
+            const badge = document.getElementById('peak-status-badge');
+            const tip = document.getElementById('peak-smart-tip');
+
+            if (hour >= 20 && hour <= 23) {
+                badge.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200";
+                badge.innerText = "沐浴尖峰時段 · 排隊機率高";
+                tip.innerHTML = "⚠️ 目前為晚間洗澡尖峰時段，機台較為擁擠，建議可稍晚或提早預約候補！";
+            } else if (hour >= 17 && hour < 20) {
+                badge.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200";
+                badge.innerText = "傍晚人潮增加 · 部分機台使用中";
+                tip.innerHTML = "💡 傍晚回宿人潮增加，建議先在線上查看空機再前往洗衣間！";
+            } else {
+                badge.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200";
+                badge.innerText = "離峰時段 · 空機率高";
+                tip.innerHTML = "💡 目前為離峰時段，空機率高，建議把握時間洗滌！";
+            }
+        }
+
+        // 渲染機台卡片
+        function renderMachines() {
+            const container = document.getElementById('machines-grid');
+            const filtered = allMachines.filter(m => (m.dorm || (m.id.startsWith('f-') ? 'female' : 'male')) === currentDorm);
+
+            // 更新分頁上的空機數量
+            const maleFree = allMachines.filter(m => (m.dorm === 'male' || !m.id.startsWith('f-')) && m.status === 'AVAILABLE').length;
+            const femaleFree = allMachines.filter(m => (m.dorm === 'female' || m.id.startsWith('f-')) && m.status === 'AVAILABLE').length;
+            document.getElementById('badge-male-free').innerText = `${maleFree} 空機`;
+            document.getElementById('badge-female-free').innerText = `${femaleFree} 空機`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-600"><p class="text-sm">此分區目前沒有機台資料</p></div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            filtered.forEach(m => {
+                const card = createMachineCardElement(m);
+                container.appendChild(card);
+            });
+        }
+
+        function createMachineCardElement(m) {
+            const card = document.createElement('div');
+            
+            // 去除名稱中可能殘留的任何括號
+            const cleanName = (m.name || m.id).replace(/\s*\(.*?\)/g, '');
+
+            let borderStyle = 'border-slate-200/80 hover:border-slate-300';
+            let statusPill = '';
+            let centralBlock = '';
+            let actionArea = '';
+
+            // 狀態 0: 維修保養中 (MAINTENANCE)
+            if (m.status === 'MAINTENANCE') {
+                borderStyle = 'border-slate-300 bg-slate-50/70 opacity-90';
+                statusPill = `
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-700 border border-slate-300">
+                        <i class="fa-solid fa-wrench text-xs mr-1.5 text-slate-600"></i>
+                        維修保養中
+                    </span>
+                `;
+                centralBlock = `
+                    <div class="my-4 py-4 px-3 rounded-2xl bg-white border border-slate-200 text-center">
+                        <div class="w-12 h-12 mx-auto rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xl mb-2">
+                            <i class="fa-solid fa-screwdriver-wrench"></i>
+                        </div>
+                        <p class="text-xs font-bold text-slate-700">機台檢修暫停使用</p>
+                        <p class="text-[11px] text-slate-600 mt-0.5">${m.fault_reason || '已通報舍監維護中'}</p>
+                    </div>
+                `;
+                actionArea = `
+                    <button disabled class="w-full py-2.5 px-4 rounded-xl bg-slate-200 text-slate-600 font-bold text-xs cursor-not-allowed">
+                        維修中無法使用
+                    </button>
+                `;
+            }
+
+            // 狀態 1: 閒置中 (AVAILABLE)
+            else if (m.status === 'AVAILABLE') {
+                borderStyle = 'border-emerald-200 bg-white hover:shadow-md';
+                statusPill = `
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+                        閒置可使用
+                    </span>
+                `;
+                centralBlock = `
+                    <div class="my-4 py-4 px-3 rounded-2xl bg-slate-50 border border-slate-100 text-center">
+                        <div class="w-12 h-12 mx-auto rounded-full bg-emerald-100/70 text-emerald-600 flex items-center justify-center text-xl mb-2">
+                            <i class="fa-solid ${m.type === 'washer' ? 'fa-soap' : 'fa-wind'}"></i>
+                        </div>
+                        <p class="text-xs font-semibold text-slate-700">目前沒有人在用</p>
+                        <p class="text-[11px] text-slate-600 mt-0.5">支援 LINE Pay / 實體投幣</p>
+                    </div>
+                `;
+                actionArea = `
+                    <button onclick="openStartModal('${m.id}', '${cleanName}', '${m.type}')" class="w-full py-3 px-4 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs transition flex items-center justify-center gap-2 shadow-sm shadow-sky-500/20 active:scale-[0.99]">
+                        <i class="fa-solid fa-play text-xs"></i>
+                        <span>開始洗衣 / 烘衣</span>
+                    </button>
+                `;
+            }
+
+            // 狀態 2: 運轉洗滌中 (IN_USE)
+            else if (m.status === 'IN_USE') {
+                borderStyle = 'border-sky-300 bg-white shadow-sm ring-1 ring-sky-100';
+                const totalCycle = 2100; // 35分基準
+                const pct = Math.max(5, Math.min(100, (1 - (m.remaining_seconds / totalCycle)) * 100));
+                
+                statusPill = `
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                        <i class="fa-solid fa-spinner animate-spin text-xs mr-1.5 text-sky-500"></i>
+                        運轉中 · 剩 ${formatCountdown(m.remaining_seconds)}
+                    </span>
+                `;
+                centralBlock = `
+                    <div class="my-4 p-3.5 rounded-2xl bg-sky-50/60 border border-sky-100">
+                        <div class="flex items-center justify-between text-xs mb-1.5">
+                            <span class="text-slate-600 font-medium font-mono">
+                                <i class="fa-regular fa-user mr-1 text-slate-600"></i>${m.current_user_name || '同學'}
+                            </span>
+                            <span class="font-mono font-bold text-sky-700 text-sm">${formatCountdown(m.remaining_seconds)}</span>
+                        </div>
+                        <div class="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden mb-2">
+                            <div class="bg-gradient-to-r from-sky-400 to-blue-500 h-2 rounded-full transition-all duration-1000" style="width: ${pct}%"></div>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px] text-slate-600">
+                            <span><i class="fa-solid fa-users text-purple-400 mr-1"></i>候補佇列</span>
+                            <span class="font-bold text-slate-700">${m.queue_count} 人等候</span>
+                        </div>
+                    </div>
+                `;
+
+                // 烘衣機專屬功能：中途追加 10 分鐘按鈕
+                let dryerExtendBtn = '';
+                if (m.type === 'dryer') {
+                    dryerExtendBtn = `
+                        <button onclick="handleExtendDryer('${m.id}')" class="w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold text-xs transition flex items-center justify-center gap-1.5 mb-2 active:scale-[0.99]">
+                            <i class="fa-solid fa-plus text-xs"></i>
+                            <span>＋延長烘衣 10 分鐘 (LINE Pay $10)</span>
+                        </button>
+                    `;
+                }
+
+                actionArea = `
+                    ${dryerExtendBtn}
+                    <button onclick="openQueueModal('${m.id}', '${cleanName}')" class="w-full py-2.5 px-4 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 font-bold text-xs transition flex items-center justify-center gap-1.5 active:scale-[0.99]">
+                        <i class="fa-solid fa-user-plus text-xs"></i>
+                        <span>排隊登記候補 (目前 ${m.queue_count} 人)</span>
+                    </button>
+                `;
+            }
+
+            // 狀態 3: 洗滌完成，待取衣 (FINISHED_UNCOLLECTED - 最核心情境 + 匿名戳一下/移至暫存籃)
+            else if (m.status === 'FINISHED_UNCOLLECTED') {
+                borderStyle = 'border-amber-300 bg-amber-50/40 shadow-sm animate-gentle';
+                statusPill = `
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                        <i class="fa-solid fa-bell text-xs mr-1.5 text-amber-600 animate-bounce"></i>
+                        洗畢快來拿 · 已閒置 ${formatCountdown(m.uncollected_seconds)}
+                    </span>
+                `;
+                centralBlock = `
+                    <div class="my-4 p-3.5 rounded-2xl bg-amber-100/60 border border-amber-200 text-center">
+                        <div class="w-10 h-10 mx-auto rounded-full bg-amber-200/80 text-amber-700 flex items-center justify-center text-lg mb-2">
+                            <i class="fa-solid fa-basket-shopping"></i>
+                        </div>
+                        <p class="text-xs font-bold text-amber-900">房號 [${m.current_user_name || '同學'}] 的衣服好了！</p>
+                        <p class="text-[11px] text-amber-700 mt-0.5">已等待 <span class="font-mono font-bold text-amber-900">${formatCountdown(m.uncollected_seconds)}</span>，避免影響下一位同學</p>
+                    </div>
+                `;
+
+                // 核心功能 1: 匿名催促與申請移至暫存籃按鈕
+                actionArea = `
+                    <div class="space-y-1.5">
+                        <button onclick="handleCollectClothes('${m.id}')" class="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.99]">
+                            <i class="fa-solid fa-hands-holding-circle text-xs"></i>
+                            <span>我已取出衣服 (釋出機台)</span>
+                        </button>
+                        
+                        <!-- 友善催促鍵 (現場排隊同學專用) -->
+                        <div class="grid grid-cols-2 gap-1.5 pt-1">
+                            <button onclick="handleAnonymousPoke('${m.id}', 'poke')" class="py-2 px-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-[11px] transition flex items-center justify-center gap-1 shadow-xs">
+                                <i class="fa-regular fa-bell text-amber-500"></i>
+                                <span>🔔 匿名戳一下</span>
+                            </button>
+                            <button onclick="handleAnonymousPoke('${m.id}', 'basket')" class="py-2 px-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-[11px] transition flex items-center justify-center gap-1 shadow-xs">
+                                <i class="fa-solid fa-basket-shopping text-sky-500"></i>
+                                <span>🧺 申請移至籃子</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 狀態 4: 候補保留中 (RESERVED)
+            else if (m.status === 'RESERVED') {
+                borderStyle = 'border-purple-300 bg-purple-50/30 shadow-sm';
+                statusPill = `
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200">
+                        <i class="fa-solid fa-user-lock text-xs mr-1.5"></i>
+                        保留給候補同學
+                    </span>
+                `;
+                centralBlock = `
+                    <div class="my-4 p-3.5 rounded-2xl bg-purple-100/60 border border-purple-200">
+                        <div class="flex items-center justify-between text-xs mb-1">
+                            <span class="font-bold text-purple-900 font-mono">保留給：${m.reserved_user_name || '候補同學'}</span>
+                            <span class="font-mono font-bold text-purple-700 text-sm">${formatCountdown(m.reserved_remaining_seconds)}</span>
+                        </div>
+                        <p class="text-[11px] text-purple-700 mt-1">系統保留 10 分鐘，逾時將自動釋放給下一位。</p>
+                    </div>
+                `;
+                actionArea = `
+                    <button onclick="openStartModal('${m.id}', '${cleanName}', '${m.type}', '${m.reserved_user_name || ''}')" class="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.99]">
+                        <i class="fa-solid fa-play text-xs"></i>
+                        <span>我是預約者，開始洗衣</span>
+                    </button>
+                `;
+            }
+
+            card.className = `bg-white rounded-3xl p-5 border ${borderStyle} transition-all duration-300 flex flex-col justify-between`;
+            card.innerHTML = `
+                <div>
+                    <!-- Card Top Header (附報修按鈕) -->
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-9 h-9 rounded-xl ${m.type === 'washer' ? 'bg-sky-50 text-sky-600' : 'bg-orange-50 text-orange-600'} flex items-center justify-center text-sm font-bold">
+                                <i class="fa-solid ${m.type === 'washer' ? 'fa-soap' : 'fa-wind'}"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-slate-900 text-sm leading-snug">${cleanName}</h3>
+                                <p class="text-[11px] text-slate-600">${m.location}</p>
+                            </div>
+                        </div>
+
+                        <!-- 報修 / 異常反饋按鈕 -->
+                        <button onclick="openReportModal('${m.id}', '${cleanName}')" class="text-[11px] text-slate-600 hover:text-amber-600 transition flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-amber-50">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span>報修</span>
+                        </button>
+                    </div>
+
+                    <!-- Status Pill Badge -->
+                    <div class="mt-3">
+                        ${statusPill}
+                    </div>
+
+                    <!-- Dynamic Central Block -->
+                    ${centralBlock}
+                </div>
+
+                <!-- Bottom Action Area -->
+                <div class="mt-2 pt-2">
+                    ${actionArea}
+                </div>
+            `;
+            return card;
+        }
+
+        // 時間格式化 (01:23)
+        function formatCountdown(totalSecs) {
+            if (!totalSecs || totalSecs <= 0) return "00:00";
+            const m = Math.floor(totalSecs / 60);
+            const s = totalSecs % 60;
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        // 彈窗通用開關
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        // 打開開始洗衣/烘衣彈窗
+        function openStartModal(machineId, machineName, machineType, defaultUser = '') {
+            document.getElementById('start-machine-id').value = machineId;
+            document.getElementById('start-machine-type').value = machineType;
+            document.getElementById('modal-start-machine-name').innerText = machineName;
+            
+            const savedRoomBed = defaultUser || localStorage.getItem('dormwash_room_bed') || '';
+            const roomBedInput = document.getElementById('start-user-name');
+            roomBedInput.value = savedRoomBed;
+            validateRoomBedInput(roomBedInput);
+
+            // 依據機型產生洗程/烘程時間選項 (無30秒，全真實生活時長)
+            const optionsContainer = document.getElementById('cycle-options-container');
+            if (machineType === 'dryer') {
+                optionsContainer.innerHTML = `
+                    <button type="button" onclick="selectCycleOption(1800, 20, this)" class="cycle-opt w-full py-2.5 px-3 rounded-xl border-2 border-sky-500 bg-sky-50/60 text-sky-900 font-bold text-xs flex items-center justify-between transition">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-wind text-sky-500"></i> 標準柔烘 (30 分鐘)</span>
+                        <span class="font-mono text-sky-700">NT$ 20</span>
+                    </button>
+                    <button type="button" onclick="selectCycleOption(900, 10, this)" class="cycle-opt w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-between transition hover:bg-slate-100">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-clock text-slate-600"></i> 微乾快烘 (15 分鐘)</span>
+                        <span class="font-mono text-slate-600">NT$ 10</span>
+                    </button>
+                    <button type="button" onclick="selectCycleOption(2700, 30, this)" class="cycle-opt w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-between transition hover:bg-slate-100">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-fire text-amber-500"></i> 強力高溫烘乾 (45 分鐘)</span>
+                        <span class="font-mono text-slate-600">NT$ 30</span>
+                    </button>
+                `;
+                document.getElementById('start-duration').value = "1800";
+                document.getElementById('start-price').value = "20";
+            } else {
+                optionsContainer.innerHTML = `
+                    <button type="button" onclick="selectCycleOption(2100, 20, this)" class="cycle-opt w-full py-2.5 px-3 rounded-xl border-2 border-sky-500 bg-sky-50/60 text-sky-900 font-bold text-xs flex items-center justify-between transition">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-soap text-sky-500"></i> 標準洗滌 (35 分鐘)</span>
+                        <span class="font-mono text-sky-700">NT$ 20</span>
+                    </button>
+                    <button type="button" onclick="selectCycleOption(1200, 15, this)" class="cycle-opt w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-between transition hover:bg-slate-100">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-500"></i> 快速輕柔洗 (20 分鐘)</span>
+                        <span class="font-mono text-slate-600">NT$ 15</span>
+                    </button>
+                    <button type="button" onclick="selectCycleOption(2700, 25, this)" class="cycle-opt w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-between transition hover:bg-slate-100">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-shield-virus text-indigo-500"></i> 溫水強效除菌洗 (45 分鐘)</span>
+                        <span class="font-mono text-slate-600">NT$ 25</span>
+                    </button>
+                `;
+                document.getElementById('start-duration').value = "2100";
+                document.getElementById('start-price').value = "20";
+            }
+
+            openModal('modal-start');
+        }
+
+        function selectCycleOption(duration, price, btn) {
+            document.getElementById('start-duration').value = duration;
+            document.getElementById('start-price').value = price;
+            document.querySelectorAll('.cycle-opt').forEach(el => {
+                el.className = "cycle-opt w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-between transition hover:bg-slate-100";
+            });
+            btn.className = "cycle-opt w-full py-2.5 px-3 rounded-xl border-2 border-sky-500 bg-sky-50/60 text-sky-900 font-bold text-xs flex items-center justify-between transition";
+        }
+
+        function selectPaymentMethod(method, btn) {
+            document.getElementById('selected-payment').value = method;
+            document.querySelectorAll('.pay-option').forEach(el => {
+                el.className = "pay-option py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition hover:bg-slate-100";
+            });
+            if (method === 'linepay') {
+                btn.className = "pay-option py-2 px-3 rounded-xl border-2 border-linepay bg-emerald-50 text-emerald-800 font-bold text-xs flex items-center justify-center gap-1.5 transition";
+            } else {
+                btn.className = "pay-option py-2 px-3 rounded-xl border-2 border-amber-500 bg-amber-50 text-amber-800 font-bold text-xs flex items-center justify-center gap-1.5 transition";
+            }
+        }
+
+        // 提交開始洗衣/烘衣
+        async function handleStartWashSubmit(e) {
+            e.preventDefault();
+            const machineId = document.getElementById('start-machine-id').value;
+            const roomBed = document.getElementById('start-user-name').value.trim();
+            const duration = parseInt(document.getElementById('start-duration').value, 10);
+            const price = document.getElementById('start-price').value;
+            const payment = document.getElementById('selected-payment').value;
+
+            // 嚴格校驗防呆
+            if (!validateRoomBed(roomBed)) {
+                alert("請輸入正確的房號床號格式！例如：1120-1 (床號僅限 1~4)");
+                return;
+            }
+
+            localStorage.setItem('dormwash_room_bed', roomBed);
+
+            // 若選擇 LINE Pay，先彈出付款模擬視窗
+            if (payment === 'linepay') {
+                pendingStartData = { machineId, roomBed, duration, price };
+                document.getElementById('linepay-amount-display').innerText = `NT$ ${price}`;
+                const m = allMachines.find(x => x.id === machineId);
+                const cleanName = m ? (m.name || m.id).replace(/\s*\(.*?\)/g, '') : machineId;
+                document.getElementById('linepay-desc-display').innerText = `${cleanName} · ${Math.round(duration/60)} 分鐘洗程`;
+                closeModal('modal-start');
+                openModal('modal-linepay');
+                return;
+            }
+
+            // 若選實體投幣，直接發送 API
+            executeStartMachine(machineId, roomBed, duration, `已確認投入 NT$ ${price} 投幣成功！`);
+        }
+
+        // 確認 LINE Pay 扣款成功
+        function confirmLinePayPayment() {
+            if (!pendingStartData) return;
+            const { machineId, roomBed, duration, price } = pendingStartData;
+            closeModal('modal-linepay');
+            playChimeSound();
+            executeStartMachine(machineId, roomBed, duration, `LINE Pay 扣款 NT$ ${price} 成功！`);
+            pendingStartData = null;
+        }
+
+        async function executeStartMachine(machineId, roomBed, duration, successNote) {
+            try {
+                const resp = await fetch('/api/demo/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'start_cycle',
+                        machine_id: machineId,
+                        duration: duration,
+                        user_name: roomBed
+                    })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    closeModal('modal-start');
+                    showStudentToast("🧺 機台開始運轉囉！", `${successNote} 洗程時間預計 ${Math.round(duration/60)} 分鐘。`, "success");
+                }
+            } catch (err) {
+                console.error(err);
+                showStudentToast("啟動失敗", "請檢查網路連線", "error");
+            }
+        }
+
+        // 烘衣機追加 10 分鐘
+        async function handleExtendDryer(machineId) {
+            if (!confirm("是否使用 LINE Pay 扣款 NT$ 10 為此烘衣機追加 10 分鐘？")) return;
+            try {
+                const resp = await fetch('/api/dryer/extend', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ machine_id: machineId, extra_minutes: 10 })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    playChimeSound();
+                    showStudentToast("＋ 烘衣時間追加成功！", "已成功延長烘衣 10 分鐘，厚外套牛仔褲安心烘～", "success");
+                }
+            } catch (err) {
+                console.error(err);
+                showStudentToast("追加失敗", "請稍後再試", "error");
+            }
+        }
+
+        // 匿名催促 / 申請移至籃子
+        async function handleAnonymousPoke(machineId, actionType) {
+            const sender = localStorage.getItem('dormwash_room_bed') || '現場等候同學';
+            try {
+                const resp = await fetch('/api/machine/poke', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        machine_id: machineId,
+                        action_type: actionType,
+                        sender: sender
+                    })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    showStudentToast(
+                        "已送出友善提醒 📢",
+                        actionType === 'basket' ? "已提醒機台主人，若無法前來將由同學協助放進乾淨暫存籃！" : "已匿名戳一下機台主人，提醒前來取衣！",
+                        "info"
+                    );
+                }
+            } catch (err) {
+                console.error(err);
+                showStudentToast("提醒發送失敗", "請稍後再試", "error");
+            }
+        }
+
+        // 排隊彈窗控制
+        function openQueueModal(machineId, machineName) {
+            document.getElementById('queue-machine-id').value = machineId;
+            document.getElementById('modal-queue-machine-name').innerText = machineName;
+            
+            const savedRoomBed = localStorage.getItem('dormwash_room_bed') || '';
+            const roomBedInput = document.getElementById('queue-user-name');
+            roomBedInput.value = savedRoomBed;
+            openModal('modal-queue');
+        }
+
+        async function handleQueueSubmit(e) {
+            e.preventDefault();
+            const machineId = document.getElementById('queue-machine-id').value;
+            const roomBed = document.getElementById('queue-user-name').value.trim();
+            const contact = document.getElementById('queue-user-contact').value.trim();
+
+            if (!validateRoomBed(roomBed)) {
+                alert("請輸入正確的房號床號格式！例如：1120-1 (床號僅限 1~4)");
+                return;
+            }
+
+            localStorage.setItem('dormwash_room_bed', roomBed);
+
+            try {
+                const resp = await fetch('/api/reserve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        machine_id: machineId,
+                        user_name: roomBed,
+                        user_contact: contact
+                    })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    closeModal('modal-queue');
+                    showStudentToast("排隊登記成功！📋", `您是第 ${res.data.queue_position} 位候補，輪到您時將保留 10 分鐘！`, "success");
+                }
+            } catch (err) {
+                console.error(err);
+                showStudentToast("登記失敗", "請檢查網路連線", "error");
+            }
+        }
+
+        // 報修彈窗控制
+        function openReportModal(machineId, machineName) {
+            document.getElementById('report-machine-id').value = machineId;
+            document.getElementById('modal-report-machine-name').innerText = machineName;
+            document.getElementById('report-user-name').value = localStorage.getItem('dormwash_room_bed') || '';
+            openModal('modal-report');
+        }
+
+        async function handleReportSubmit(e) {
+            e.preventDefault();
+            const machineId = document.getElementById('report-machine-id').value;
+            const issueType = document.getElementById('report-issue-type').value;
+            const note = document.getElementById('report-note').value.trim();
+            const reporter = document.getElementById('report-user-name').value.trim() || '熱心同學';
+
+            try {
+                const resp = await fetch('/api/machine/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        machine_id: machineId,
+                        issue_type: issueType,
+                        note: note,
+                        reporter: reporter
+                    })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    closeModal('modal-report');
+                    showStudentToast(
+                        "報修已送出 🛠️",
+                        `感謝同學回報！累計多次異常將由系統自動掛上維護標籤並通知舍監處理。`,
+                        "warning"
+                    );
+                }
+            } catch (err) {
+                console.error(err);
+                showStudentToast("報修失敗", "請稍後再試", "error");
+            }
+        }
+
+        // 取出衣物
+        async function handleCollectClothes(machineId) {
+            try {
+                const resp = await fetch('/api/demo/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'collect_clothes', machine_id: machineId })
+                });
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    showStudentToast("衣物已取走 🎉", "感謝您的公德心！機台已釋出給下一位同學使用。", "success");
+                }
+            } catch (err) {
+                console.error(err);
+                showStudentToast("操作失敗", "請稍後再試", "error");
+            }
+        }
+
+        // 顯示推播通知卡片 (Toast)
+        function showStudentToast(title, body, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            let iconColor = 'text-sky-500 bg-sky-50';
+            let icon = 'fa-info';
+            let border = 'border-slate-200';
+
+            if (type === 'success') {
+                iconColor = 'text-emerald-600 bg-emerald-50';
+                icon = 'fa-check';
+                border = 'border-emerald-200';
+            } else if (type === 'warning') {
+                iconColor = 'text-amber-600 bg-amber-50';
+                icon = 'fa-bell';
+                border = 'border-amber-300 shadow-md';
+            }
+
+            toast.className = `p-4 rounded-2xl bg-white/95 backdrop-blur-md border ${border} shadow-lg flex items-start space-x-3 pointer-events-auto transition-all duration-300 transform translate-y-3 opacity-0`;
+            toast.innerHTML = `
+                <div class="w-8 h-8 rounded-xl ${iconColor} flex items-center justify-center shrink-0 text-sm font-bold">
+                    <i class="fa-solid ${icon}"></i>
+                </div>
+                <div class="flex-grow">
+                    <h5 class="text-xs font-bold text-slate-900">${title}</h5>
+                    <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">${body}</p>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-slate-600 hover:text-slate-600 text-xs p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            `;
+            container.appendChild(toast);
+
+            setTimeout(() => toast.classList.remove('translate-y-3', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-x-full');
+                setTimeout(() => toast.remove(), 400);
+            }, 6000);
+        }
+
+        // 初始化 WebSocket 連線
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => console.log("WebSocket connected");
+
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.machines) {
+                    allMachines = data.machines;
+                    renderMachines();
+                }
+
+                if (data.type === 'ANONYMOUS_POKE' && data.data) {
+                    const myRoom = localStorage.getItem('dormwash_room_bed');
+                    // 若自己是該機台的主人或是現場測試
+                    playChimeSound();
+                    sendNativeNotification(data.data.title, data.data.content);
+                    showStudentToast(data.data.title, data.data.content, "warning");
+                }
+
+                if (data.events && data.events.length > 0) {
+                    data.events.forEach(ev => handleIncomingEvent(ev));
+                }
+                if (data.event) {
+                    handleIncomingEvent(data.event);
+                }
+            };
+
+            socket.onclose = () => setTimeout(initWebSocket, 3000);
+        }
+
+        function handleIncomingEvent(ev) {
+            if (ev.event_type === 'WASH_COMPLETED') {
+                playChimeSound();
+                sendNativeNotification("🧺 叮咚！您的衣服洗好囉！", "衣服已洗滌完畢，請於 10 分鐘內前往取出，避免被別人移走喔！");
+                showStudentToast(
+                    "🧺 叮咚！衣服洗好了！",
+                    "您的衣物已洗滌完畢，請於 10 分鐘內前往洗衣房取出，避免被其他同學移開喔！",
+                    "warning"
+                );
+            } else if (ev.event_type === 'QUEUE_HANDOVER') {
+                playChimeSound();
+                sendNativeNotification("🔔 輪到你洗衣服了！", "機台已有空位，系統為您保留 10 分鐘緩衝期，請儘速前往！");
+                showStudentToast(
+                    "🔔 輪到你洗衣服了！",
+                    "機台已清空，系統為您專屬保留 10 分鐘，請前往洗衣房投放衣物！",
+                    "warning"
+                );
+            }
+        }
+
+        // 首次透過 REST 載入
+        async function fetchInitialData() {
+            try {
+                const resp = await fetch('/api/machines');
+                const res = await resp.json();
+                if (res.status === 'success') {
+                    allMachines = res.data;
+                    renderMachines();
+                }
+            } catch (err) {
+                console.error("Fetch error:", err);
+            }
+        }
+
+        // 每秒定時器 (倒數剩餘時間與已超時時間更新)
+        setInterval(() => {
+            let changed = false;
+            allMachines.forEach(m => {
+                if (m.status === 'IN_USE' && m.remaining_seconds > 0) {
+                    m.remaining_seconds -= 1;
+                    changed = true;
+                } else if (m.status === 'FINISHED_UNCOLLECTED') {
+                    m.uncollected_seconds += 1;
+                    changed = true;
+                } else if (m.status === 'RESERVED' && m.reserved_remaining_seconds > 0) {
+                    m.reserved_remaining_seconds -= 1;
+                    changed = true;
+                }
+            });
+            if (changed) renderMachines();
+        }, 1000);
+
+        // 頁面加載完成
+        window.addEventListener('DOMContentLoaded', () => {
+            updateNotificationButtonState();
+            updatePeakPrediction();
+            fetchInitialData();
+            initWebSocket();
+        });
+    </script>
+</body>
+</html>
