@@ -46,6 +46,21 @@
         .animate-gentle {
             animation: gentle-pulse 2.2s infinite ease-in-out;
         }
+        /* 彈窗細緻自訂捲軸 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f8fafc;
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-700 min-h-screen flex flex-col antialiased selection:bg-sky-100 selection:text-sky-800">
@@ -200,13 +215,13 @@
 
     <!-- Modal 1: 開始洗衣/烘衣彈窗 (嚴格房號-床號驗證 + LINE Pay 整合) -->
     <div id="modal-start" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl border border-slate-100 relative">
-            <button onclick="closeModal('modal-start')" class="absolute top-5 right-5 text-slate-600 hover:text-slate-700 transition">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-5 md:p-6 shadow-xl border border-slate-100 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <button onclick="closeModal('modal-start')" class="absolute top-4 right-4 md:top-5 md:right-5 text-slate-500 hover:text-slate-700 transition z-10">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
             
-            <div class="flex items-center space-x-3 mb-4">
-                <div class="w-11 h-11 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl shadow-xs">
+            <div class="flex items-center space-x-3 mb-3">
+                <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center text-lg shadow-xs">
                     <i class="fa-solid fa-play"></i>
                 </div>
                 <div>
@@ -215,7 +230,7 @@
                 </div>
             </div>
 
-            <form id="start-form" onsubmit="handleStartWashSubmit(event)" class="space-y-4">
+            <form id="start-form" onsubmit="handleStartWashSubmit(event)" class="space-y-3">
                 <input type="hidden" id="start-machine-id">
                 <input type="hidden" id="start-machine-type">
                 
@@ -227,7 +242,7 @@
                     <div class="relative">
                         <input type="text" id="start-user-name" required placeholder="例如: 1120-1" maxlength="7"
                                oninput="validateRoomBedInput(this)"
-                               class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition">
+                               class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition">
                         <span id="roombed-check-icon" class="absolute right-3 top-2.5 text-xs hidden"></span>
                     </div>
                     <p id="roombed-error" class="text-[11px] text-rose-500 font-medium mt-1 hidden">
@@ -236,24 +251,24 @@
                 </div>
 
                 <!-- LINE 身分綁定 / 掃碼啟動區塊 (方案 A: LIFF 掃碼自動身分綁定) -->
-                <div id="start-line-block" class="py-3 px-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-center shadow-xs">
+                <div id="start-line-block" class="py-2.5 px-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-center shadow-xs">
                     <!-- 電腦端顯示：手機掃碼至手機啟動 -->
                     <div id="liff-qr-container">
-                        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white text-[11px] font-bold text-emerald-700 border border-emerald-200 shadow-2xs mb-2">
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white text-[10px] md:text-[11px] font-bold text-emerald-700 border border-emerald-200 shadow-2xs mb-1.5">
                             <i class="fa-brands fa-line text-emerald-500 text-sm"></i>
                             <span>手機掃碼以您的身分啟動</span>
                         </div>
-                        <div class="flex justify-center mb-2">
-                            <img src="/static/liff_qrcode.png" alt="LIFF 洗衣房 QR Code" class="w-[160px] h-[160px] rounded-2xl shadow-xs border-2 border-emerald-300 bg-white p-1 object-contain">
+                        <div class="flex justify-center mb-1.5">
+                            <img src="/static/liff_qrcode.png" alt="LIFF 洗衣房 QR Code" class="w-[125px] h-[125px] md:w-[130px] md:h-[130px] rounded-xl shadow-xs border border-emerald-300 bg-white p-1 object-contain">
                         </div>
-                        <p class="text-xs font-bold text-emerald-800 leading-snug">
+                        <p class="text-[11px] md:text-xs font-bold text-emerald-800 leading-snug">
                             📱 請用手機 LINE 掃描此條碼開啟，洗畢自動推播至您的手機！
                         </p>
                         
                         <!-- 快速複製與傳送連結 -->
-                        <div class="flex items-center justify-center gap-1.5 mt-2.5">
-                            <input type="text" readonly value="https://liff.line.me/2012549721-4xGYbnL6" id="liff-url-text" class="text-[11px] font-mono px-2 py-1 bg-white border border-slate-200 rounded-lg text-slate-600 w-44 text-center select-all">
-                            <button type="button" onclick="copyLiffUrl()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition flex items-center gap-1 shadow-xs">
+                        <div class="flex items-center justify-center gap-1.5 mt-2">
+                            <input type="text" readonly value="https://liff.line.me/2012549721-4xGYbnL6" id="liff-url-text" class="text-[10px] md:text-[11px] font-mono px-2 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-600 w-40 text-center select-all">
+                            <button type="button" onclick="copyLiffUrl()" class="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] md:text-[11px] font-bold transition flex items-center gap-1 shadow-xs">
                                 <i class="fa-solid fa-copy"></i> 複製連結
                             </button>
                         </div>
@@ -262,7 +277,7 @@
                         </p>
 
                         <!-- 查看加好友條碼連結 -->
-                        <div class="mt-2 pt-2 border-t border-emerald-200/60 flex items-center justify-between text-[11px]">
+                        <div class="mt-1.5 pt-1.5 border-t border-emerald-200/60 flex items-center justify-between text-[10px] md:text-[11px]">
                             <button type="button" onclick="openFriendQrModal()" class="text-emerald-700 hover:text-emerald-800 font-semibold flex items-center gap-1">
                                 <i class="fa-solid fa-qrcode"></i> 先加管家為好友
                             </button>
@@ -293,7 +308,7 @@
 
                 <!-- 選擇洗程或烘程方案 -->
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">選擇洗滌方案</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">選擇洗滌方案</label>
                     <div id="cycle-options-container" class="space-y-1.5">
                         <!-- Injected based on washer or dryer -->
                     </div>
@@ -303,7 +318,7 @@
 
                 <!-- 付款方式選擇 (LINE Pay / 投幣) -->
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">付款方式</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">付款方式</label>
                     <div class="grid grid-cols-2 gap-2">
                         <button type="button" onclick="selectPaymentMethod('linepay', this)" class="pay-option py-2 px-3 rounded-xl border-2 border-linepay bg-emerald-50 text-emerald-800 font-bold text-xs flex items-center justify-center gap-1.5 transition">
                             <span class="w-4 h-4 rounded-full bg-linepay text-white flex items-center justify-center text-[10px] font-black">L</span>
@@ -329,7 +344,7 @@
 
     <!-- Modal 1-B: LINE Pay 模擬支付彈窗 -->
     <div id="modal-linepay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-slate-100 relative text-center">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-slate-100 relative text-center max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button onclick="closeModal('modal-linepay')" class="absolute top-5 right-5 text-slate-600 hover:text-slate-700">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
@@ -360,7 +375,7 @@
 
     <!-- Modal 2: 登記排隊候補 (嚴格房號-床號驗證) -->
     <div id="modal-queue" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl border border-slate-100 relative">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl border border-slate-100 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button onclick="closeModal('modal-queue')" class="absolute top-5 right-5 text-slate-600 hover:text-slate-700 transition">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
@@ -415,7 +430,7 @@
 
     <!-- Modal 3: 機台報修 / 異常反饋彈窗 -->
     <div id="modal-report" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl border border-slate-100 relative">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl border border-slate-100 relative max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button onclick="closeModal('modal-report')" class="absolute top-5 right-5 text-slate-600 hover:text-slate-700 transition">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
@@ -468,7 +483,7 @@
 
     <!-- Modal 4: 官方好友加好友條碼彈窗 -->
     <div id="modal-friend-qr" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-slate-100 relative text-center">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-slate-100 relative text-center max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button onclick="closeModal('modal-friend-qr')" class="absolute top-5 right-5 text-slate-600 hover:text-slate-700">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
