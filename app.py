@@ -5,8 +5,9 @@ import threading
 from datetime import datetime
 from typing import List, Optional
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Response
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -18,16 +19,40 @@ init_db()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 背景自動啟動 IoT 感測模擬線程，雲端部署免多開終端機
-    def background_simulator():
+    # 背景自動啟動 IoT 感測模擬線程與倒數歸零即時監控
+    def background_monitor():
         time.sleep(2)
         try:
             import simulator
-            simulator.simulation_worker()
+            threading.Thread(target=simulator.simulation_worker, daemon=True).start()
         except Exception as e:
-            print("Simulator worker stopped:", e)
-            
-    t = threading.Thread(target=background_simulator, daemon=True)
+            print("Simulator worker error:", e)
+
+        # 啟動秒級輪詢：倒數歸零立即觸發 LINE 推播與狀態流轉
+        while True:
+            time.sleep(1)
+            try:
+                conn = get_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, cycle_end_time FROM machines WHERE status = 'IN_USE' AND cycle_end_time IS NOT NULL")
+                rows = cursor.fetchall()
+                conn.close()
+
+                now = datetime.now()
+                for r in rows:
+                    if r["cycle_end_time"]:
+                        try:
+                            end_dt = datetime.fromisoformat(r["cycle_end_time"])
+                            if now >= end_dt:
+                                ev = EventEngine.finish_wash_cycle(r["id"])
+                                if ev:
+                                    print(f"Cycle finished for {r['id']}, LINE push sent.")
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+    t = threading.Thread(target=background_monitor, daemon=True)
     t.start()
     yield
 
@@ -37,6 +62,12 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.join(BASE_DIR, "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 app.add_middleware(
     CORSMiddleware,
@@ -86,13 +117,15 @@ class TelemetryPayload(BaseModel):
 class ReservationPayload(BaseModel):
     machine_id: str
     user_name: str
-    user_contact: str
+    user_contact: Optional[str] = "LINE"
+    line_user_id: Optional[str] = None
 
 class DemoActionPayload(BaseModel):
     action: str  # "start_cycle", "finish_cycle", "collect_clothes", "reset_all"
     machine_id: Optional[str] = None
-    duration: Optional[int] = 30
+    duration: Optional[int] = 35 * 60
     user_name: Optional[str] = None
+    line_user_id: Optional[str] = None
 
 class ReportPayload(BaseModel):
     machine_id: str
@@ -168,14 +201,19 @@ def fetch_all_machines_data():
 # REST API 端點
 # ----------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
-async def serve_index():
-    template_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
+async def serve_index(response: Response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    template_path = os.path.join(BASE_DIR, "templates", "index.html")
     with open(template_path, "r", encoding="utf-8") as f:
         return f.read()
 
 @app.get("/api/machines")
-async def get_machines():
+async def get_machines(response: Response):
     """獲取所有機器當前狀態"""
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
     return {"status": "success", "data": fetch_all_machines_data()}
 
 @app.post("/api/telemetry")
@@ -206,11 +244,12 @@ async def ingest_telemetry(payload: TelemetryPayload):
 
 @app.post("/api/reserve")
 async def create_reservation(payload: ReservationPayload):
-    """使用者預約排隊"""
+    """使用者預約排隊 (綁定 LINE User ID)"""
     res = EventEngine.add_reservation(
         machine_id=payload.machine_id,
         user_name=payload.user_name,
-        user_contact=payload.user_contact
+        user_contact=payload.user_contact or "LINE",
+        line_user_id=payload.line_user_id
     )
     machines_data = fetch_all_machines_data()
     await ws_manager.broadcast({
@@ -230,8 +269,8 @@ async def demo_action(payload: DemoActionPayload):
     if payload.action == "start_cycle":
         if not payload.machine_id:
             raise HTTPException(status_code=400, detail="machine_id is required")
-        duration = payload.duration or 30
-        event = EventEngine.start_wash_cycle(payload.machine_id, duration, payload.user_name)
+        duration = payload.duration or (35 * 60)
+        event = EventEngine.start_wash_cycle(payload.machine_id, duration, payload.user_name, payload.line_user_id)
 
     elif payload.action == "finish_cycle":
         if not payload.machine_id:

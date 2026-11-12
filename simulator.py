@@ -81,7 +81,7 @@ def simulation_worker():
         step += 1
         backend_machines = {}
         try:
-            r = requests.get("http://127.0.0.1:8000/api/machines", timeout=1.5)
+            r = requests.get(f"http://127.0.0.1:{PORT}/api/machines", timeout=1.5)
             if r.status_code == 200:
                 for b_m in r.json().get("data", []):
                     backend_machines[b_m["id"]] = b_m

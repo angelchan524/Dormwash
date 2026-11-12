@@ -3,11 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>DormWash 宿舍智慧洗衣房</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome 6 CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- LINE Front-end Framework (LIFF) SDK v2 -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <!-- Google Fonts: Plus Jakarta Sans / Noto Sans TC -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -66,8 +71,14 @@
                 </div>
             </div>
 
-            <!-- Right Controls: Notification Switch & Test Sound -->
+            <!-- Right Controls: LIFF User Badge & Notification Switch -->
             <div class="flex items-center space-x-2">
+                <!-- LIFF User Identity Badge (自動顯示 LINE 登入身分) -->
+                <div id="liff-user-badge" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <img id="liff-user-avatar" src="" alt="avatar" class="w-4 h-4 rounded-full object-cover hidden">
+                    <i id="liff-default-icon" class="fa-brands fa-line text-emerald-600 text-sm"></i>
+                    <span id="liff-user-name">LINE 已連線</span>
+                </div>
                 <button id="notify-toggle-btn" onclick="toggleNotificationPermission()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5 border border-slate-200">
                     <i id="notify-icon" class="fa-regular fa-bell text-slate-600"></i>
                     <span id="notify-text">開啟取衣提醒</span>
@@ -224,6 +235,62 @@
                     </p>
                 </div>
 
+                <!-- LINE 身分綁定 / 掃碼啟動區塊 (方案 A: LIFF 掃碼自動身分綁定) -->
+                <div id="start-line-block" class="py-3 px-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-center shadow-xs">
+                    <!-- 電腦端顯示：手機掃碼至手機啟動 -->
+                    <div id="liff-qr-container">
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white text-[11px] font-bold text-emerald-700 border border-emerald-200 shadow-2xs mb-2">
+                            <i class="fa-brands fa-line text-emerald-500 text-sm"></i>
+                            <span>手機掃碼以您的身分啟動</span>
+                        </div>
+                        <div class="flex justify-center mb-2">
+                            <img src="/static/liff_qrcode.png" alt="LIFF 洗衣房 QR Code" class="w-[160px] h-[160px] rounded-2xl shadow-xs border-2 border-emerald-300 bg-white p-1 object-contain">
+                        </div>
+                        <p class="text-xs font-bold text-emerald-800 leading-snug">
+                            📱 請用手機 LINE 掃描此條碼開啟，洗畢自動推播至您的手機！
+                        </p>
+                        
+                        <!-- 快速複製與傳送連結 -->
+                        <div class="flex items-center justify-center gap-1.5 mt-2.5">
+                            <input type="text" readonly value="https://liff.line.me/2012549721-4xGYbnL6" id="liff-url-text" class="text-[11px] font-mono px-2 py-1 bg-white border border-slate-200 rounded-lg text-slate-600 w-44 text-center select-all">
+                            <button type="button" onclick="copyLiffUrl()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition flex items-center gap-1 shadow-xs">
+                                <i class="fa-solid fa-copy"></i> 複製連結
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mt-1">
+                            (螢幕反光不好掃時，可直接複製網址在 LINE 傳給朋友點開)
+                        </p>
+
+                        <!-- 查看加好友條碼連結 -->
+                        <div class="mt-2 pt-2 border-t border-emerald-200/60 flex items-center justify-between text-[11px]">
+                            <button type="button" onclick="openFriendQrModal()" class="text-emerald-700 hover:text-emerald-800 font-semibold flex items-center gap-1">
+                                <i class="fa-solid fa-qrcode"></i> 先加管家為好友
+                            </button>
+                            <button type="button" onclick="toggleCustomLineId()" class="text-slate-500 hover:text-slate-700 text-[10px]">
+                                電腦測試 ID ⚙️
+                            </button>
+                        </div>
+
+                        <!-- 電腦端自訂測試 LINE ID (隱藏) -->
+                        <div id="custom-line-id-box" class="hidden mt-2 text-left bg-white p-2.5 rounded-xl border border-slate-200">
+                            <label class="block text-[10px] font-bold text-slate-600 mb-1">電腦端測試用 LINE User ID (留空使用預設管理者帳號)</label>
+                            <input type="text" id="start-line-id" placeholder="例如: U1376d41faf186c1405f53951417b88f4" class="w-full text-xs font-mono px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:border-emerald-500">
+                        </div>
+                    </div>
+
+                    <!-- 手機端已登入 LIFF 顯示：已綁定提示 -->
+                    <div id="liff-bound-container" class="hidden py-2">
+                        <div class="w-12 h-12 mx-auto rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-xl mb-2">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <h4 class="text-xs font-bold text-emerald-900">LINE 身分已成功連線</h4>
+                        <p id="liff-bound-name" class="text-xs text-emerald-700 font-medium mt-0.5">同學 (已連線)</p>
+                        <p class="text-[11px] text-emerald-600 mt-1.5">
+                            ✨ 洗程結束倒數歸零時，將自動推送訊息至您的個人手機 LINE！
+                        </p>
+                    </div>
+                </div>
+
                 <!-- 選擇洗程或烘程方案 -->
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1.5">選擇洗滌方案</label>
@@ -321,9 +388,19 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">通知信箱 / 代號</label>
-                    <input type="text" id="queue-user-contact" required placeholder="例如: student@school.edu.tw" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition">
-                    <p class="text-[11px] text-slate-600 mt-1.5 leading-relaxed">前一位同學取衣完畢後，系統將發送通知並自動保留 10 分鐘！</p>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold text-slate-700">
+                            LINE 推播通知 ID
+                        </label>
+                        <span class="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                            <i class="fa-brands fa-line mr-0.5"></i> 輪替提醒
+                        </span>
+                    </div>
+                    <input type="text" id="queue-line-id" placeholder="例如: U1376d41faf186c1405f53951417b88f4"
+                           class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition">
+                    <p class="text-[11px] text-purple-700 mt-1.5 leading-relaxed font-medium">
+                        🔔 前一位同學取衣完畢釋出後，系統將透過 LINE 自動推播輪替提醒並為您保留 10 分鐘！
+                    </p>
                 </div>
 
                 <div class="pt-2 flex items-center justify-end space-x-2">
@@ -389,16 +466,132 @@
         </div>
     </div>
 
+    <!-- Modal 4: 官方好友加好友條碼彈窗 -->
+    <div id="modal-friend-qr" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-slate-100 relative text-center">
+            <button onclick="closeModal('modal-friend-qr')" class="absolute top-5 right-5 text-slate-600 hover:text-slate-700">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="w-12 h-12 mx-auto rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-xl mb-3 shadow-md shadow-emerald-200">
+                <i class="fa-brands fa-line text-2xl"></i>
+            </div>
+            <h3 class="text-base font-bold text-slate-900">加入 DormWash 官方好友</h3>
+            <p class="text-xs text-slate-600 mt-1">需先加入官方帳號好友，洗畢時才能接收 LINE 推播通知！</p>
+
+            <div class="my-4 flex justify-center">
+                <img src="/static/line_qrcode.png" alt="官方好友 QR Code" class="w-44 h-44 rounded-2xl border-2 border-emerald-200 shadow-sm p-1 bg-white object-contain">
+            </div>
+
+            <p class="text-xs font-semibold text-emerald-800">
+                📱 請用手機相機或 LINE 掃描上方條碼加入好友
+            </p>
+
+            <div class="mt-4 pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeModal('modal-friend-qr')" class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 transition">
+                    已加入好友 / 關閉
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Floating Top-Right Toast Notification Banner -->
     <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2 pointer-events-none max-w-sm w-full"></div>
 
     <!-- ==================== FRONTEND JAVASCRIPT ==================== -->
     <script>
+        // LINE Front-end Framework (LIFF) 設定
+        const MY_LIFF_ID = "2012549721-4xGYbnL6";
+        const DEFAULT_TEST_LINE_ID = "U1376d41faf186c1405f53951417b88f4";
+        let liffUserProfile = null;
+
         // 全域狀態
         let currentDorm = 'male'; // 'male' or 'female'
         let allMachines = [];
         let socket = null;
         let pendingStartData = null; // LINE Pay 待付款資料
+
+        // 初始化 LINE LIFF 並自動獲取使用者 Profile
+        async function initLiff() {
+            if (typeof liff === 'undefined') {
+                console.log("LIFF SDK not detected, running in standard web mode.");
+                return;
+            }
+            try {
+                await liff.init({ liffId: MY_LIFF_ID });
+                console.log("LIFF Initialized with ID:", MY_LIFF_ID);
+
+                if (liff.isLoggedIn()) {
+                    const profile = await liff.getProfile();
+                    liffUserProfile = profile;
+                    console.log("LIFF Profile loaded:", profile);
+                    if (profile.userId) {
+                        localStorage.setItem('dormwash_line_id', profile.userId);
+                    }
+                    updateLiffUserBadge(profile);
+                } else if (liff.isInClient()) {
+                    // 若在 LINE App 內打開卻尚未授權，引導登入
+                    liff.login();
+                } else {
+                    console.log("LIFF initialized in external browser, user not logged in.");
+                }
+            } catch (err) {
+                console.warn("LIFF init error:", err);
+            }
+        }
+
+        // 更新頂部導覽列之 LINE 使用者身分徽章
+        function updateLiffUserBadge(profile) {
+            const badge = document.getElementById('liff-user-badge');
+            const nameEl = document.getElementById('liff-user-name');
+            const avatarEl = document.getElementById('liff-user-avatar');
+            const iconEl = document.getElementById('liff-default-icon');
+
+            if (badge && profile) {
+                badge.classList.remove('hidden');
+                badge.classList.add('flex');
+                if (nameEl) nameEl.innerText = profile.displayName || "LINE 同學";
+                if (avatarEl && profile.pictureUrl) {
+                    avatarEl.src = profile.pictureUrl;
+                    avatarEl.classList.remove('hidden');
+                    if (iconEl) iconEl.classList.add('hidden');
+                }
+            }
+        }
+
+        // 複製 LIFF 專屬網址
+        function copyLiffUrl() {
+            const url = "https://liff.line.me/2012549721-4xGYbnL6";
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    showStudentToast("連結已複製！📋", "已複製專屬 LIFF 網址，可在 LINE 傳給朋友點開！", "success");
+                }).catch(() => {
+                    copyFallback(url);
+                });
+            } else {
+                copyFallback(url);
+            }
+        }
+
+        function copyFallback(text) {
+            const temp = document.createElement("input");
+            temp.value = text;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand("copy");
+            document.body.removeChild(temp);
+            showStudentToast("連結已複製！📋", "已複製專屬 LIFF 網址，可在 LINE 傳給朋友點開！", "success");
+        }
+
+        // 打開官方好友 QR Code 彈窗
+        function openFriendQrModal() {
+            openModal('modal-friend-qr');
+        }
+
+        // 切換電腦端自訂 LINE ID 輸入框
+        function toggleCustomLineId() {
+            const box = document.getElementById('custom-line-id-box');
+            if (box) box.classList.toggle('hidden');
+        }
 
         // 提示音：Web Audio API 三音和弦鈴聲
         function playChimeSound() {
@@ -836,10 +1029,33 @@
             roomBedInput.value = savedRoomBed;
             validateRoomBedInput(roomBedInput);
 
-            // 依據機型產生洗程/烘程時間選項 (無30秒，全真實生活時長)
+            // 根據是否已在手機 LIFF 內獲取使用者資訊，動態切換顯示「已連線狀態」或「掃碼引導」
+            const qrContainer = document.getElementById('liff-qr-container');
+            const boundContainer = document.getElementById('liff-bound-container');
+            const boundName = document.getElementById('liff-bound-name');
+
+            if (liffUserProfile && liffUserProfile.userId) {
+                if (qrContainer) qrContainer.classList.add('hidden');
+                if (boundContainer) boundContainer.classList.remove('hidden');
+                if (boundName) boundName.innerText = `${liffUserProfile.displayName || '同學'} (已連線)`;
+            } else {
+                if (qrContainer) qrContainer.classList.remove('hidden');
+                if (boundContainer) boundContainer.classList.add('hidden');
+            }
+
+            // 漸進式授權：帶入已記住的 LINE ID 或預設測試 ID
+            const savedLineId = (liffUserProfile && liffUserProfile.userId) || localStorage.getItem('dormwash_line_id') || DEFAULT_TEST_LINE_ID;
+            const startLineInput = document.getElementById('start-line-id');
+            if (startLineInput) startLineInput.value = savedLineId;
+
+            // 依據機型產生洗程/烘程時間選項 (提供 10 秒極速測試推播與正式時長)
             const optionsContainer = document.getElementById('cycle-options-container');
             if (machineType === 'dryer') {
                 optionsContainer.innerHTML = `
+                    <button type="button" onclick="selectCycleOption(10, 0, this)" class="cycle-opt w-full py-2 px-3 rounded-xl border border-dashed border-sky-400 bg-sky-50/50 text-sky-800 font-bold text-xs flex items-center justify-between transition hover:bg-sky-100">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-500 animate-pulse"></i> ⚡ 10 秒極速體驗 (測試 LINE 推播)</span>
+                        <span class="font-mono text-emerald-600 font-bold">NT$ 0</span>
+                    </button>
                     <button type="button" onclick="selectCycleOption(1800, 20, this)" class="cycle-opt w-full py-2.5 px-3 rounded-xl border-2 border-sky-500 bg-sky-50/60 text-sky-900 font-bold text-xs flex items-center justify-between transition">
                         <span class="flex items-center gap-1.5"><i class="fa-solid fa-wind text-sky-500"></i> 標準柔烘 (30 分鐘)</span>
                         <span class="font-mono text-sky-700">NT$ 20</span>
@@ -857,6 +1073,10 @@
                 document.getElementById('start-price').value = "20";
             } else {
                 optionsContainer.innerHTML = `
+                    <button type="button" onclick="selectCycleOption(10, 0, this)" class="cycle-opt w-full py-2 px-3 rounded-xl border border-dashed border-sky-400 bg-sky-50/50 text-sky-800 font-bold text-xs flex items-center justify-between transition hover:bg-sky-100">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-500 animate-pulse"></i> ⚡ 10 秒極速體驗 (測試 LINE 推播)</span>
+                        <span class="font-mono text-emerald-600 font-bold">NT$ 0</span>
+                    </button>
                     <button type="button" onclick="selectCycleOption(2100, 20, this)" class="cycle-opt w-full py-2.5 px-3 rounded-xl border-2 border-sky-500 bg-sky-50/60 text-sky-900 font-bold text-xs flex items-center justify-between transition">
                         <span class="flex items-center gap-1.5"><i class="fa-solid fa-soap text-sky-500"></i> 標準洗滌 (35 分鐘)</span>
                         <span class="font-mono text-sky-700">NT$ 20</span>
@@ -906,6 +1126,8 @@
             const duration = parseInt(document.getElementById('start-duration').value, 10);
             const price = document.getElementById('start-price').value;
             const payment = document.getElementById('selected-payment').value;
+            const startLineInput = document.getElementById('start-line-id');
+            const lineId = (startLineInput && startLineInput.value.trim()) || DEFAULT_TEST_LINE_ID;
 
             // 嚴格校驗防呆
             if (!validateRoomBed(roomBed)) {
@@ -914,35 +1136,38 @@
             }
 
             localStorage.setItem('dormwash_room_bed', roomBed);
+            localStorage.setItem('dormwash_line_id', lineId);
 
-            // 若選擇 LINE Pay，先彈出付款模擬視窗
-            if (payment === 'linepay') {
-                pendingStartData = { machineId, roomBed, duration, price };
+            // 若選擇 LINE Pay，先彈出付款模擬視窗 (0元直接啟動)
+            if (payment === 'linepay' && price > 0) {
+                pendingStartData = { machineId, roomBed, duration, price, lineId };
                 document.getElementById('linepay-amount-display').innerText = `NT$ ${price}`;
                 const m = allMachines.find(x => x.id === machineId);
                 const cleanName = m ? (m.name || m.id).replace(/\s*\(.*?\)/g, '') : machineId;
-                document.getElementById('linepay-desc-display').innerText = `${cleanName} · ${Math.round(duration/60)} 分鐘洗程`;
+                document.getElementById('linepay-desc-display').innerText = `${cleanName} · ${duration < 60 ? duration + ' 秒測試' : Math.round(duration/60) + ' 分鐘洗程'}`;
                 closeModal('modal-start');
                 openModal('modal-linepay');
                 return;
             }
 
-            // 若選實體投幣，直接發送 API
-            executeStartMachine(machineId, roomBed, duration, `已確認投入 NT$ ${price} 投幣成功！`);
+            // 若選實體投幣或 0 元測試，直接發送 API
+            const note = price > 0 ? `已確認投入 NT$ ${price} 投幣成功！` : `極速體驗測試啟動！`;
+            executeStartMachine(machineId, roomBed, duration, note, lineId);
         }
 
         // 確認 LINE Pay 扣款成功
         function confirmLinePayPayment() {
             if (!pendingStartData) return;
-            const { machineId, roomBed, duration, price } = pendingStartData;
+            const { machineId, roomBed, duration, price, lineId } = pendingStartData;
             closeModal('modal-linepay');
             playChimeSound();
-            executeStartMachine(machineId, roomBed, duration, `LINE Pay 扣款 NT$ ${price} 成功！`);
+            executeStartMachine(machineId, roomBed, duration, `LINE Pay 扣款 NT$ ${price} 成功！`, lineId);
             pendingStartData = null;
         }
 
-        async function executeStartMachine(machineId, roomBed, duration, successNote) {
+        async function executeStartMachine(machineId, roomBed, duration, successNote, lineId) {
             try {
+                const targetLineId = (liffUserProfile && liffUserProfile.userId) || lineId || localStorage.getItem('dormwash_line_id') || DEFAULT_TEST_LINE_ID;
                 const resp = await fetch('/api/demo/action', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -950,13 +1175,15 @@
                         action: 'start_cycle',
                         machine_id: machineId,
                         duration: duration,
-                        user_name: roomBed
+                        user_name: roomBed,
+                        line_user_id: targetLineId
                     })
                 });
                 const res = await resp.json();
                 if (res.status === 'success') {
                     closeModal('modal-start');
-                    showStudentToast("🧺 機台開始運轉囉！", `${successNote} 洗程時間預計 ${Math.round(duration/60)} 分鐘。`, "success");
+                    const timeLabel = duration < 60 ? `${duration} 秒倒數` : `${Math.round(duration/60)} 分鐘`;
+                    showStudentToast("🧺 機台開始運轉囉！", `${successNote} 洗程時間預計 ${timeLabel}。LINE 取衣提醒已就緒！`, "success");
                 }
             } catch (err) {
                 console.error(err);
@@ -1019,6 +1246,11 @@
             const savedRoomBed = localStorage.getItem('dormwash_room_bed') || '';
             const roomBedInput = document.getElementById('queue-user-name');
             roomBedInput.value = savedRoomBed;
+
+            // 漸進式授權：帶入已記住的 LINE ID 或預設測試 ID
+            const savedLineId = localStorage.getItem('dormwash_line_id') || DEFAULT_TEST_LINE_ID;
+            document.getElementById('queue-line-id').value = savedLineId;
+
             openModal('modal-queue');
         }
 
@@ -1026,7 +1258,8 @@
             e.preventDefault();
             const machineId = document.getElementById('queue-machine-id').value;
             const roomBed = document.getElementById('queue-user-name').value.trim();
-            const contact = document.getElementById('queue-user-contact').value.trim();
+            const rawLineId = document.getElementById('queue-line-id').value.trim();
+            const finalLineId = (liffUserProfile && liffUserProfile.userId) || rawLineId || DEFAULT_TEST_LINE_ID;
 
             if (!validateRoomBed(roomBed)) {
                 alert("請輸入正確的房號床號格式！例如：1120-1 (床號僅限 1~4)");
@@ -1034,6 +1267,7 @@
             }
 
             localStorage.setItem('dormwash_room_bed', roomBed);
+            localStorage.setItem('dormwash_line_id', finalLineId);
 
             try {
                 const resp = await fetch('/api/reserve', {
@@ -1042,13 +1276,14 @@
                     body: JSON.stringify({
                         machine_id: machineId,
                         user_name: roomBed,
-                        user_contact: contact
+                        user_contact: "LINE",
+                        line_user_id: finalLineId
                     })
                 });
                 const res = await resp.json();
                 if (res.status === 'success') {
                     closeModal('modal-queue');
-                    showStudentToast("排隊登記成功！📋", `您是第 ${res.data.queue_position} 位候補，輪到您時將保留 10 分鐘！`, "success");
+                    showStudentToast("排隊登記成功！📋", `您是第 ${res.data.queue_position} 位候補，輪到您時將透過 LINE 自動推播保留 10 分鐘提醒！`, "success");
                 }
             } catch (err) {
                 console.error(err);
@@ -1212,17 +1447,27 @@
             }
         }
 
-        // 首次透過 REST 載入
+        // 透過 REST 定期載入與狀態同步 (含防快取機制與輪詢保護)
         async function fetchInitialData() {
             try {
-                const resp = await fetch('/api/machines');
+                const resp = await fetch('/api/machines?_t=' + Date.now(), { cache: 'no-store' });
                 const res = await resp.json();
-                if (res.status === 'success') {
+                if (res.status === 'success' && Array.isArray(res.data)) {
                     allMachines = res.data;
                     renderMachines();
                 }
             } catch (err) {
                 console.error("Fetch error:", err);
+                const container = document.getElementById('machines-grid');
+                if (container && allMachines.length === 0) {
+                    container.innerHTML = `
+                        <div class="col-span-full py-16 text-center text-slate-600">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-500 text-3xl mb-2"></i>
+                            <p class="text-xs font-bold text-slate-800">資料連線中...</p>
+                            <button onclick="fetchInitialData()" class="mt-3 px-4 py-1.5 rounded-xl bg-sky-500 text-white text-xs font-bold shadow-sm">立即重新載入</button>
+                        </div>
+                    `;
+                }
             }
         }
 
@@ -1246,10 +1491,13 @@
 
         // 頁面加載完成
         window.addEventListener('DOMContentLoaded', () => {
-            updateNotificationButtonState();
-            updatePeakPrediction();
+            initLiff();
+            try { updateNotificationButtonState(); } catch(e){}
+            try { updatePeakPrediction(); } catch(e){}
             fetchInitialData();
             initWebSocket();
+            // 雙重保險：每 3 秒自動透過 REST 輪詢同步一次，確保即便 WebSocket 斷線機台狀態依然即時更新
+            setInterval(fetchInitialData, 3000);
         });
     </script>
 </body>

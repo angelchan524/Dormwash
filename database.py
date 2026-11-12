@@ -2,10 +2,12 @@ import sqlite3
 import os
 from datetime import datetime
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "laundry.db")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "laundry.db")
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=20.0)
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -45,6 +47,10 @@ def init_db():
         cursor.execute("ALTER TABLE machines ADD COLUMN fault_reports_count INTEGER DEFAULT 0")
     if "fault_reason" not in columns:
         cursor.execute("ALTER TABLE machines ADD COLUMN fault_reason TEXT")
+    if "current_line_user_id" not in columns:
+        cursor.execute("ALTER TABLE machines ADD COLUMN current_line_user_id TEXT")
+    if "reserved_line_user_id" not in columns:
+        cursor.execute("ALTER TABLE machines ADD COLUMN reserved_line_user_id TEXT")
 
     # 2. Reservations Queue Table
     cursor.execute("""
@@ -53,12 +59,18 @@ def init_db():
         machine_id TEXT NOT NULL,
         user_name TEXT NOT NULL,
         user_contact TEXT NOT NULL,
+        line_user_id TEXT,
         status TEXT NOT NULL DEFAULT 'WAITING',
         created_at TEXT NOT NULL,
         notified_at TEXT,
         FOREIGN KEY (machine_id) REFERENCES machines(id)
     )
     """)
+
+    cursor.execute("PRAGMA table_info(reservations)")
+    res_columns = [row["name"] for row in cursor.fetchall()]
+    if "line_user_id" not in res_columns:
+        cursor.execute("ALTER TABLE reservations ADD COLUMN line_user_id TEXT")
 
     # 3. Telemetry Logs Table
     cursor.execute("""
